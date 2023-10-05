@@ -1,0 +1,864 @@
+---
+title: "noro_correlations"
+author: "Julie Gilbert"
+date: "11/28/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+## Data Loads
+
+```{r}
+
+library(tidyverse)
+library(lubridate)
+library(reshape2)
+library(openxlsx)
+library(ggpubr)
+
+data_path <- "C:/Users/juliegil/Dropbox (University of Michigan)/SPH-COVID Response/Jules/norovirus_ww_crosscorr"
+
+detroit_noro <- read.csv(paste0(data_path, "/norovirusDetroit20210101-20221129.csv"), skip = 1)
+colnames(detroit_noro) <- c("Week", "Noro")
+detroit_sf <- read.csv(paste0(data_path, "/stomach fluDetroit20210101-20221129.csv"), skip = 1)
+colnames(detroit_sf) <- c("Week", "SF")
+detroit_ge <- read.csv(paste0(data_path, "/gastroenteritisDetroit20210101-20221129.csv"), skip = 1)
+colnames(detroit_ge) <- c("Week", "GE")
+
+mi_noro <- read.csv(paste0(data_path, "/norovirusMichigan20210101-20221129.csv"), skip = 1)
+colnames(mi_noro) <- c("Week", "Noro")
+mi_sf <- read.csv(paste0(data_path, "/stomach fluMichigan20210101-20221129.csv"), skip = 1)
+colnames(mi_sf) <- c("Week", "SF")
+mi_ge <- read.csv(paste0(data_path, "/gastroenteritisMichigan20210101-20221129.csv"), skip = 1)
+colnames(mi_ge) <- c("Week", "GE")
+
+ww_noro <- read.csv(paste0(data_path, "/norov_wastewater_data_all_cities.csv"))
+#colnames(ww_noro)
+ww_noro <- ww_noro %>% select(Date, City, Sample, NorovirusAvgConc, NVnormalizedPMMoV)
+#table(ww_noro$SampleType)
+# remove days with more than one sample
+a <- ww_noro %>% group_by(Date, City) %>% summarize(count = length(Sample))
+ww_noro <- merge(ww_noro, a, by = c("Date", "City"))
+ww_noro <- filter(ww_noro, count <= 1)
+
+# retrospective data
+#retro_noro <- read.xlsx("C:/Users/juliegil/Dropbox (University of Michigan)/CARES-SEWER/other pathogens/norovirus/retrospective data/6-29-22 retro NV and N1 normalized results.xlsx")
+
+# michelle data
+michelle <- read.xlsx(paste0(data_path, "/All NV%PMMoV and gcperL.xlsx"), detectDates = TRUE)
+
+colnames(michelle) <- c("AA.dates", "AAdailyNVPMMoV", "AAgcL", "FL.dates", "FLNVPMMoV",      
+                        "FLgcL", "JS.dates", "JSNVGIIPMMoV", "JSgcL", "TM.dates",      
+                        "TMNVGGPMMoV", "TMgcL", "YC.dates", "YCNVGIIPMMoV", "YCgcL")
+
+michelle <- michelle %>% mutate(AA.dates = as.character(AA.dates), 
+                                TM.dates = as.character(TM.dates), 
+                                FL.dates = as.character(FL.dates), 
+                                JS.dates = as.character(JS.dates), 
+                                YC.dates = as.character(YC.dates))
+
+aa <- michelle %>% select(AA.dates, AAdailyNVPMMoV, AAgcL)
+colnames(aa) <- c("Date", "NVPMMoV", "gcL")
+aa$city <- "AA"
+
+fl <- michelle %>% select(FL.dates, FLNVPMMoV, FLgcL)
+colnames(fl) <- c("Date", "NVPMMoV", "gcL")
+fl$city <- "FL"
+
+js <- michelle %>% select(JS.dates, JSNVGIIPMMoV, JSgcL)
+colnames(js) <- c("Date", "NVPMMoV", "gcL")
+js$city <- "JS"
+
+tm <- michelle %>% select(TM.dates, TMNVGGPMMoV, TMgcL)
+colnames(tm) <- c("Date", "NVPMMoV", "gcL")
+tm$city <- "TM"
+
+yc <- michelle %>% select(YC.dates, YCNVGIIPMMoV, YCgcL)
+colnames(yc) <- c("Date", "NVPMMoV", "gcL")
+yc$city <- "YC"
+
+michelle2 <- rbind(aa, fl, js, tm, yc)
+
+
+
+
+```
+
+
+## Michelle's PEG Data
+
+```{r, fig.height=8, fig.width=10}
+
+ggplot(michelle2, aes(x = as_date(Date), y = gcL)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "", 
+       y = "Gene Copies per L") + 
+  facet_wrap(.~city)
+
+```
+
+
+
+## Google Trends - "Norovirus" and "Stomach Flu"
+
+
+```{r}
+ggplot(detroit_noro, aes(x = as_date(Week), y = Noro)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "Week", 
+       y = "Normalized Count", 
+       title = "Detroit Region 'Norovirus' Searches")
+
+```
+
+
+```{r}
+
+ggplot(detroit_sf, aes(x = as_date(Week), y = SF)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "Week", 
+       y = "Normalized Count", 
+       title = "Detroit Region 'Stomach Flu' Searches")
+
+```
+
+
+```{r}
+
+
+ggplot(detroit_ge, aes(x = as_date(Week), y = GE)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "Week", 
+       y = "Normalized Count", 
+       title = "Detroit Region 'Gastroenteritis' Searches")
+
+```
+
+```{r}
+
+ggplot(mi_noro, aes(x = as_date(Week), y = Noro)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "Week", 
+       y = "Normalized Count", 
+       title = "Michigan 'Norovirus' Searches")
+
+```
+
+
+```{r}
+
+ggplot(mi_sf, aes(x = as_date(Week), y = SF)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "Week", 
+       y = "Normalized Count", 
+       title = "Michigan Region 'Stomach Flu' Searches")
+
+```
+
+
+```{r}
+
+ggplot(mi_ge, aes(x = as_date(Week), y = GE)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  labs(x = "Week", 
+       y = "Normalized Count", 
+       title = "Michigan Region 'Gastroenteritis' Searches")
+
+```
+
+## How Correlated Are These Data?
+
+
+```{r}
+
+full_norosf_set <- merge(mi_noro, mi_sf, by = c("Week"), all = TRUE)
+colnames(full_norosf_set) <- c("Week", "MI_Noro", "MI_SF")
+full_norosf_set <- merge(full_norosf_set, detroit_noro, by = c("Week"), all = TRUE)
+colnames(full_norosf_set) <- c("Week", "MI_Noro", "MI_SF", "DET_Noro")
+full_norosf_set <- merge(full_norosf_set, detroit_sf, by = c("Week"), all = TRUE)
+colnames(full_norosf_set) <- c("Week", "MI_Noro", "MI_SF", "DET_Noro", "DET_SF")
+
+full_norosf_set <- merge(full_norosf_set, detroit_ge, by = c("Week"), all = TRUE)
+colnames(full_norosf_set) <- c("Week", "MI_Noro", "MI_SF", "DET_Noro", "DET_SF", "DET_GE")
+full_norosf_set <- merge(full_norosf_set, mi_ge, by = c("Week"), all = TRUE)
+colnames(full_norosf_set) <- c("Week", "MI_Noro", "MI_SF", "DET_Noro", "DET_SF", "DET_GE", "MI_GE")
+
+cormat <- round(cor(full_norosf_set[, c(2, 3, 4, 5, 6, 7)]),2)
+melted_cormat <- melt(cormat)
+
+# mtcars_cor <- Hmisc::rcorr(as.matrix(full_norosf_set[, c(2, 3, 4, 5)]))
+# correlations <- data.frame(mtcars_cor$r)
+# pvalues <- data.frame(mtcars_cor$P)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0.5, limit = c(0,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of Search Data")
+
+```
+
+---
+
+Michelle: There was very high correlation for a given search term between the Detroit Metro data and all of MI data. Is this because the area considered Detroit Metro is very large (>4Million - do we know the size?) thus representing over 40% of the state population and possibly an even larger percentage of those with internet? This correlation was higher than the correlation between the different terms for an area. 
+
+
+Jules: We'd expect a high correlation between the "Michigan" search term and the equivalent "Detroit" search term because a) the "Detroit" item is part of the "Michigan" whole and b) Detroit has a high concentration of Michigan's total population. We see that with MI_SF to DET_SF = 0.86 and MI_Noro to DET_Noro = 0.85. I imagine the other correlations are still relatively high due to the general symptom & seasonal overlap between the two search terms. 
+
+---
+
+
+## Norovirus Influent Wastewater Testing
+
+
+```{r}
+
+ggplot(ww_noro, aes(x = as_date(Date), y = NorovirusAvgConc)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  labs(x = "Sample Date", 
+       y = "Average Concentration", 
+       title = "Norovirus Average Concentration Detection from WWTPs") + 
+  facet_wrap(.~City)
+
+```
+
+
+```{r}
+
+ggplot(ww_noro, aes(x = as_date(Date), y = NorovirusAvgConc)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  labs(x = "Sample Date", 
+       y = "Average Concentration", 
+       title = "Norovirus Average Concentration Detection from WWTPs") + 
+  facet_wrap(.~City, scales = "free")
+
+```
+
+
+
+```{r}
+
+ggplot(ww_noro, aes(x = as_date(Date), y = NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  labs(x = "Sample Date", 
+       y = "Average Concentration Normalized with PMMoV", 
+       title = "Norovirus Average Concentration Detection from WWTPs", 
+       subtitle = "Normalized with PMMoV") + 
+  facet_wrap(.~City)
+
+
+```
+
+
+
+```{r}
+
+ggplot(ww_noro, aes(x = as_date(Date), y = NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  labs(x = "Sample Date", 
+       y = "Average Concentration Normalized with PMMoV", 
+       title = "Norovirus Average Concentration Detection from WWTPs", 
+       subtitle = "Normalized with PMMoV") + 
+  facet_wrap(.~City, scales = "free")
+
+
+```
+
+
+
+```{r}
+
+ww_noro_ind <- ww_noro
+ww_noro_ind$Date2 <- paste0(year(as_date(ww_noro_ind$Date)), "-", month(as_date(ww_noro_ind$Date)))
+ww_noro_ind$cor_group <- ifelse(ww_noro_ind$Date2 %in% c("2021-10", "2021-11", 
+                                                         "2021-12", "2021-9", 
+                                                         "2022-1", "2022-2", 
+                                                         "2022-3", "2022-4"), "Early", "Late")
+
+ggplot(ww_noro_ind, aes(x = NorovirusAvgConc, y = NVnormalizedPMMoV, color = cor_group, group = cor_group)) + 
+  geom_point(alpha = 0.5) + 
+  stat_cor(method = "pearson", aes(x = NorovirusAvgConc, y = NVnormalizedPMMoV, color = cor_group, group = cor_group), inherit.aes = FALSE) +
+  scale_color_manual(values = c("red", "black")) + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  labs(x = "Average Concentration", 
+       y = "Average Concentration Normalized with PMMoV", 
+       title = "Norovirus Average Concentration vs. Normalization with PMMoV", 
+       color = "Timing Group") + 
+  facet_wrap(.~City, scales = "free")
+
+```
+
+
+
+---
+
+Michelle: The Avg concentration values for a given WWTP don't correlate well with the PMMoV normalized values for the same WWTP - where I saw decent correlation values when I ran this. Something seems off with the avg concentration values?
+
+
+Jules: It looks like it has something to do with the "oldest" data that was just added to the system. Something is definitely different there - the easiest way to troubleshoot that would probably be if I could look at the dataset Michelle was using?
+
+---
+
+
+
+
+
+
+## How Correlated Are These Data?
+
+
+```{r}
+
+# have to reshape data to compare cities
+ww_noro2 <- ww_noro %>% select(Date, City, Sample, NorovirusAvgConc, NVnormalizedPMMoV)
+ww_melt <- melt(ww_noro2, id.vars = c("Date", "Sample", "City"))
+full_ww_set <- dcast(ww_melt, Date ~ City + variable, value.var = c("value"))
+
+cormat <- round(cor(full_ww_set[, c(2, 3, 4, 5, 7, 8, 9, 10, 11)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data")
+
+```
+
+
+## How Correlated Are Search Data and WWTP Data?
+
+
+---
+
+Michelle: For the same time, the highest correlations between PMMoV normalized values and search terms were seen for YC and FL, lowest for TM and JS. TM and JS were our highest peaks overall - perhaps this affected the correlation. - Can we separate the charts that compare the PMMoV normalized values to the search terms from the Avg concentration values (see slides 6 and 7)? | Higher correlation overall for stomach flu than for norovirus (on the same day) compared to WW values.
+
+---
+
+
+
+```{r}
+
+all_data <- merge(full_ww_set, full_norosf_set, by.x = c("Date"), by.y = c("Week"), all = TRUE)
+# forward fill the search data
+
+all_data <- all_data %>% fill(c(MI_Noro, MI_SF, MI_GE, DET_Noro, DET_SF, DET_GE), .direction = "down")
+
+# avg
+cormat <- round(cor(all_data[, c(2, 4, 6, 8, 10, 12, 14)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data with 'Norovirus' Search", 
+       subtitle = "Average Concentration")
+
+```
+
+
+```{r}
+
+# avg
+cormat <- round(cor(all_data[, c(3, 5, 7, 9, 11, 12, 14)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data with 'Norovirus' Search", 
+       subtitle = "Normalized with PMMoV")
+
+
+```
+
+
+```{r}
+
+cormat <- round(cor(all_data[, c(2, 4, 6, 8, 10, 13, 15)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data with 'Stomach Flu' Search", 
+       subtitle = "Average Concentration")
+
+```
+
+
+
+```{r}
+
+cormat <- round(cor(all_data[, c(3, 5, 7, 9, 11, 13, 15)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data with 'Stomach Flu' Search", 
+       subtitle = "Normalized with PMMoV")
+
+```
+
+
+
+```{r}
+
+cormat <- round(cor(all_data[, c(2, 4, 6, 8, 10, 16, 17)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data with 'Gastroenteritis' Search", 
+       subtitle = "Average Concentration")
+
+```
+
+
+
+```{r}
+
+cormat <- round(cor(all_data[, c(3, 5, 7, 9, 11, 16, 17)], use = "pairwise.complete.obs"),2)
+melted_cormat <- melt(cormat)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(x=Var1, y=Var2, label = value)) +
+  scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") + 
+  labs(x = "", 
+       y = "", 
+       fill = "", 
+       title = "Correlations of WWTP Data with 'Gastroenteritis' Search", 
+       subtitle = "Normalized with PMMoV")
+
+```
+
+## Timeseries Comparisons
+
+```{r}
+
+ww3 <- full_ww_set
+se3 <- full_norosf_set
+
+ad <- merge(ww3, se3, by.x = c("Date"), by.y = c("Week"), all = TRUE)
+ad <- ad %>% fill(c(MI_Noro, MI_SF, MI_GE, DET_Noro, DET_SF, DET_GE), .direction = "down")
+colnames(ad)
+
+ad <- filter(ad, as_date(Date) >= as_date("2021-07-01"))
+
+ggplot(ad, aes(x = as_date(Date), y = YC_NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_Noro/1000), color = "#B26E63", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_SF/1000), color = "#D4C2FC", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_GE/1000), color = "#17A398", size = 1, alpha= 0.5) +
+  scale_y_continuous(sec.axis = sec_axis(~ . * 1000, name = "Normalized Count")) + 
+  theme_bw()+ 
+  labs(x = "Date", 
+       y = "Norovirus Detection Normalized with PMMoV", 
+       title = "Ypsilanti Wastewater Measurements vs. Detroit Search Terms", 
+       caption = "Search Terms: Orange = Norovirus, Lavender = Stomach Flu, Green = Gastroentiritis")
+
+```
+
+
+
+```{r}
+
+ggplot(ad, aes(x = as_date(Date), y = AA_NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_Noro/1000), color = "#B26E63", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_SF/1000), color = "#D4C2FC", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_GE/1000), color = "#17A398", size = 1, alpha= 0.5) +
+  scale_y_continuous(sec.axis = sec_axis(~ . * 1000, name = "Normalized Count")) + 
+  theme_bw()+ 
+  labs(x = "Date", 
+       y = "Norovirus Detection Normalized with PMMoV", 
+       title = "Ann Arbor Wastewater Measurements vs. Detroit Search Terms", 
+       caption = "Search Terms: Orange = Norovirus, Lavender = Stomach Flu, Green = Gastroentiritis")
+
+```
+
+
+
+
+
+```{r}
+
+ggplot(ad, aes(x = as_date(Date), y = FL_NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_Noro/1000), color = "#B26E63", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_SF/1000), color = "#D4C2FC", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_GE/1000), color = "#17A398", size = 1, alpha= 0.5) +
+  scale_y_continuous(sec.axis = sec_axis(~ . * 1000, name = "Normalized Count")) + 
+  theme_bw()+ 
+  labs(x = "Date", 
+       y = "Norovirus Detection Normalized with PMMoV", 
+       title = "Flint Wastewater Measurements vs. Detroit Search Terms", 
+       caption = "Search Terms: Orange = Norovirus, Lavender = Stomach Flu, Green = Gastroentiritis")
+
+```
+
+
+```{r}
+
+ggplot(ad, aes(x = as_date(Date), y = JS_NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_Noro/1000), color = "#B26E63", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_SF/1000), color = "#D4C2FC", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_GE/1000), color = "#17A398", size = 1, alpha= 0.5) +
+  scale_y_continuous(sec.axis = sec_axis(~ . * 1000, name = "Normalized Count")) + 
+  theme_bw()+ 
+  labs(x = "Date", 
+       y = "Norovirus Detection Normalized with PMMoV", 
+       title = "Jackson Wastewater Measurements vs. Detroit Search Terms", 
+       caption = "Search Terms: Orange = Norovirus, Lavender = Stomach Flu, Green = Gastroentiritis")
+
+```
+
+
+
+```{r}
+
+ggplot(ad, aes(x = as_date(Date), y = TM_NVnormalizedPMMoV)) + 
+  geom_point() + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_Noro/1000), color = "#B26E63", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_SF/1000), color = "#D4C2FC", size = 1, alpha= 0.5) + 
+  geom_line(data = ad, aes(x = as_date(Date), y = DET_GE/1000), color = "#17A398", size = 1, alpha= 0.5) +
+  scale_y_continuous(sec.axis = sec_axis(~ . * 1000, name = "Normalized Count")) + 
+  theme_bw()+ 
+  labs(x = "Date", 
+       y = "Norovirus Detection Normalized with PMMoV", 
+       title = "Tecumseh Wastewater Measurements vs. Detroit Search Terms", 
+       caption = "Search Terms: Orange = Norovirus, Lavender = Stomach Flu, Green = Gastroentiritis")
+
+```
+
+
+
+
+## Does Lagging the Data Affect the Correlation Between Search Data and WWTP Data?
+
+
+
+```{r, fig.height=15, fig.width=15}
+
+minus_correlations <- data.frame()
+full_ww_set2 <- full_ww_set
+full_norosf_set2 <- full_norosf_set
+
+### need to lag -3 weeks (-21 days) to +3 weeks (+21 days)
+switches <- c(7, 14, 21)
+
+for (i in switches){
+
+    full_ww_set2 <- full_ww_set2 %>% mutate(Date = as_date(Date) - 7)
+    full_norosf_set2$Week <- as.character(full_norosf_set2$Week)
+    full_ww_set2$Date <- as.character(full_ww_set2$Date)
+    
+    all_data <- merge(full_ww_set2, full_norosf_set2, by.x = c("Date"), by.y = c("Week"), all = TRUE)
+    # forward fill the search data
+    
+    all_data <- all_data %>% fill(c(MI_Noro, MI_SF, MI_GE, DET_Noro, DET_SF, DET_GE), .direction = "down")
+    
+    print(paste0("Correlation Scatter Plots, Lag = ", i))
+    pairs(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)])
+    
+    cormat <- round(cor(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)], use = "pairwise.complete.obs"),2)
+    melted_cormat <- reshape2::melt(cormat)
+    
+    mtcars_cor <- Hmisc::rcorr(as.matrix(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)]))
+    #correlations <- data.frame(mtcars_cor$r)
+    pvalues <- data.frame(mtcars_cor$P)
+    pvalues <- tibble::rownames_to_column(pvalues, "VALUE")
+    pvalues <- reshape2::melt(pvalues)
+    colnames(pvalues) <- c("Var1", "Var2", "pvalue")
+    
+    melted_cormat$lag_amount <- -i
+    melted_cormat <- merge(melted_cormat, pvalues, by = c("Var1", "Var2"), all = TRUE)
+    minus_correlations <- rbind(minus_correlations, melted_cormat)
+}
+
+
+
+
+
+plus_correlations <- data.frame()
+full_ww_set2 <- full_ww_set
+full_norosf_set2 <- full_norosf_set
+
+### need to lag -3 weeks (-21 days) to +3 weeks (+21 days)
+switches <- c(7, 14, 21)
+
+for (i in switches){
+
+    full_ww_set2 <- full_ww_set2 %>% mutate(Date = as_date(Date) + 7)
+    full_norosf_set2$Week <- as.character(full_norosf_set2$Week)
+    full_ww_set2$Date <- as.character(full_ww_set2$Date)
+    
+    all_data <- merge(full_ww_set2, full_norosf_set2, by.x = c("Date"), by.y = c("Week"), all = TRUE)
+    # forward fill the search data
+    
+    all_data <- all_data %>% fill(c(MI_Noro, MI_SF, MI_GE, DET_Noro, DET_SF, DET_GE), .direction = "down")
+    
+    print(paste0("Correlation Scatter Plots, Lag = ", i))
+    pairs(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)])
+    
+    cormat <- round(cor(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)], use = "pairwise.complete.obs"),2)
+    melted_cormat <- reshape2::melt(cormat)
+    
+    mtcars_cor <- Hmisc::rcorr(as.matrix(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)]))
+    #correlations <- data.frame(mtcars_cor$r)
+    pvalues <- data.frame(mtcars_cor$P)
+    pvalues <- tibble::rownames_to_column(pvalues, "VALUE")
+    pvalues <- reshape2::melt(pvalues)
+    colnames(pvalues) <- c("Var1", "Var2", "pvalue")
+    
+    melted_cormat$lag_amount <- i
+    melted_cormat <- merge(melted_cormat, pvalues, by = c("Var1", "Var2"), all = TRUE)
+    plus_correlations <- rbind(plus_correlations, melted_cormat)
+}
+
+full_ww_set2 <- full_ww_set
+full_norosf_set2 <- full_norosf_set
+#full_ww_set2 <- full_ww_set2 %>% mutate(Date = as_date(Date) + 7)
+  
+all_data <- merge(full_ww_set2, full_norosf_set2, by.x = c("Date"), by.y = c("Week"), all = TRUE)
+# forward fill the search data
+    
+all_data <- all_data %>% fill(c(MI_Noro, MI_SF, MI_GE, DET_Noro, DET_SF, DET_GE), .direction = "down")
+    
+    
+cormat <- round(cor(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)], use = "pairwise.complete.obs"),2)
+melted_cormat <-reshape2:: melt(cormat)
+
+mtcars_cor <- Hmisc::rcorr(as.matrix(all_data[, c(2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)]))
+#correlations <- data.frame(mtcars_cor$r)
+pvalues <- data.frame(mtcars_cor$P)
+pvalues <- tibble::rownames_to_column(pvalues, "VALUE")
+pvalues <- reshape2::melt(pvalues)
+colnames(pvalues) <- c("Var1", "Var2", "pvalue")
+    
+melted_cormat$lag_amount <- 0
+melted_cormat <- merge(melted_cormat, pvalues, by = c("Var1", "Var2"), all = TRUE)
+
+plus_correlations <- rbind(plus_correlations, melted_cormat)
+
+all_cors <- rbind(minus_correlations, plus_correlations)
+
+```
+
+
+
+```{r}
+
+all_cors <- all_cors %>% mutate(sigsymbol = case_when(pvalue > 0.05 ~ "ns", 
+                                                      pvalue <= 0.05 & pvalue > 0.01 ~ "*", 
+                                                      pvalue <= 0.01 & pvalue > 0.001 ~ "**", 
+                                                      pvalue <= 0.001 & pvalue > 0.0001 ~ "***", 
+                                                      T ~ "****"))
+
+
+
+all_vars <- unique(as.character(filter(all_cors, grepl("PMMoV", Var1))$Var1))
+
+for (each_var in all_vars){
+    test1 <- filter(all_cors, Var1 == each_var & Var2 %in% c("MI_Noro", "DET_Noro"))
+    
+    cor_lag <- ggplot(test1, aes(x = as.factor(lag_amount), y = value, fill = value)) + 
+      geom_bar(stat = "identity") + 
+      geom_text(aes(x = as.factor(lag_amount), y = value, label = signif(pvalue, digits=3)), nudge_y = -0.12, angle = 90, color = "white", fontface = "bold") + 
+      theme_bw() + 
+      labs(x = "Lag", 
+           y = "Correlation", 
+           title = paste0(unique(test1$Var1)), 
+           caption = "P-value of Correlation Coefficent") + 
+      scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") +
+      ylim(0, 1) +
+      facet_wrap(.~Var2) 
+    
+    print(cor_lag)
+}
+
+
+for (each_var in all_vars){
+    test1 <- filter(all_cors, Var1 == each_var & Var2 %in% c("MI_Noro", "DET_Noro"))
+    
+    cor_lag <- ggplot(test1, aes(x = as.factor(lag_amount), y = value, fill = value)) + 
+      geom_bar(stat = "identity") + 
+      geom_text(aes(x = as.factor(lag_amount), y = value, label = sigsymbol), nudge_y = -0.12, angle = 90, color = "white", fontface = "bold") + 
+      theme_bw() + 
+      labs(x = "Lag", 
+           y = "Correlation", 
+           title = paste0(unique(test1$Var1))) + 
+      scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") +
+      ylim(0, 1) +
+      facet_wrap(.~Var2) 
+    
+    print(cor_lag)
+}
+
+
+```
+
+
+
+```{r}
+# 
+# my_comparisons = list( c("-21", "-14"), c("-21", "-7"), c("-21", "0"), c("-21", "7"),
+#                        c("-21", "14"), c("-21", "21"), 
+#                        c("-14", "-7"), c("-14", "0"), c("-14", "7"), c("-14", "14"), 
+#                        c("-14", "21"), 
+#                        c("-7", "0"), c("-7", "7"), c("-7", "14"), c("-7", "21"), 
+#                        c("0", "7"), c("0", "14"), c("0", "21"), 
+#                        c("7", "14"), c("7", "21"), c("14", "21"))
+
+for (each_var in all_vars){
+    test1 <- filter(all_cors, Var1 == each_var & Var2 %in% c("MI_SF", "DET_SF"))
+    
+    cor_lag <- ggplot(test1, aes(x = as.factor(lag_amount), y = value, fill = value)) + 
+      geom_bar(stat = "identity") + 
+      theme_bw() + 
+      geom_text(aes(x = as.factor(lag_amount), y = value, label = signif(pvalue, digits=3)), nudge_y = -0.12, angle = 90, color = "white", fontface = "bold") + 
+      scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") +
+      labs(x = "Lag", 
+           y = "Correlation", 
+           title = paste0(unique(test1$Var1)), 
+           caption = "P-value of Correlation Coefficent") + 
+      ylim(0, 1) +
+      #geom_signif(comparisons = my_comparisons, 
+      #        map_signif_level=TRUE) +
+      facet_wrap(.~Var2) 
+    
+    print(cor_lag)
+}
+
+
+
+
+for (each_var in all_vars){
+    test1 <- filter(all_cors, Var1 == each_var & Var2 %in% c("MI_SF", "DET_SF"))
+    
+    cor_lag <- ggplot(test1, aes(x = as.factor(lag_amount), y = value, fill = value)) + 
+      geom_bar(stat = "identity") + 
+      theme_bw() + 
+      geom_text(aes(x = as.factor(lag_amount), y = value, label = sigsymbol), nudge_y = -0.12, angle = 90, color = "white", fontface = "bold") + 
+      scale_fill_gradient2(low = "#84A98C", high = "#2F3E46", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab") +
+      labs(x = "Lag", 
+           y = "Correlation", 
+           title = paste0(unique(test1$Var1))) + 
+      ylim(0, 1) +
+      #geom_signif(comparisons = my_comparisons, 
+      #        map_signif_level=TRUE) +
+      facet_wrap(.~Var2) 
+    
+    print(cor_lag)
+}
+
+
+```
+
+
+
+---
+
+Michelle: For the cross correlations the labels said that the search data lagged compared to WW data. The results in slide 9 show values correlate best when NV search term is 7 to 21 days (14 for YC) earlier than wastewater values for Detroit (-21 to -7 lag). Am I understanding this wrong? If we look at the graph in slide 8, NV seems to be coming up later than the WW values for YC. | Values correlate best when Detroit metro SF search term is the same day as WW values (except TM), more variation seen for MI SF search timing.
+
+Jules: The data here has the Search data lagged relative to the WW data (so, the WW dates are held constant, and the "lag" is for the search data, and therefore a "-7 day lag" means that the data for WW was held true [ex. 11/21/2022] and assigned the search data from seven days later [11/28/2022]) -- Updated 11/30/2022: The WW data is lagged relative to the Search data (so, the Search dates are held constant, and the "lag" is for the WW data, and therefore a "-7 day lag" means that the data for Search was held true [ex. 11/21/2022] and assigned the WW data from seven days later [11/28/2022])
+
+---
+
+
+
+
+
+
+
+
+
