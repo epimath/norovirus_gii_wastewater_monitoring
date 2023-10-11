@@ -77,3 +77,21 @@ ggplot(all_data, aes(x = YC_NVnormalizedPMMoV, y = MI_SF)) +
        y = "Google Trends - Michigan - 'Stomach Flu'")
 
 
+#####
+
+one_set <- full_ww_set %>% select(Date, YC_NorovirusAvgConc, YC_NVnormalizedPMMoV)
+trend_set <- full_norosf_set %>% select(Week, MI_SF, MI_Noro)
+
+one_set <- one_set %>% mutate(Date = as_date(Date))
+trend_set <- trend_set %>% mutate(Week = as_date(Week))
+
+all_data <- merge(one_set, trend_set, by.x = c("Date"), by.y = c("Week"), all = TRUE)
+
+all_data <- all_data %>% fill(c(MI_SF), .direction = "down")
+
+cor(all_data$YC_NVnormalizedPMMoV, all_data$MI_SF, use = "complete.obs", method = "pearson")
+cor(all_data$YC_NVnormalizedPMMoV, all_data$MI_SF, use = "complete.obs", method = "spearman")
+cor(all_data$YC_NVnormalizedPMMoV, all_data$MI_Noro, use = "complete.obs", method = "pearson")
+cor(all_data$YC_NVnormalizedPMMoV, all_data$MI_Noro, use = "complete.obs", method = "spearman")
+
+
